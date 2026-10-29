@@ -1,0 +1,670 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dot Art Studio</title>
+<style>
+:root {
+  --bg:#080e1d;
+  --panel:#121d32;
+  --text:#f2f6ff;
+  --muted:#9caecc;
+  --accent:#62e6ff;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:Arial,sans-serif;
+}
+header{
+  padding:17px 14px;text-align:center;
+  background:linear-gradient(130deg,#17264b,#102f43);
+  border-bottom:1px solid #29415e;
+}
+header h1{margin:0;font-size:25px}
+header p{margin:8px 0 0;color:var(--muted);font-size:13px}
+main{max-width:1100px;margin:auto;padding:12px}
+.panel{
+  background:var(--panel);border:1px solid #263751;
+  border-radius:15px;padding:13px;margin-bottom:12px;
+}
+h3{margin:0 0 12px;font-size:15px}
+.tools{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+}
+button,.filebtn,select,input[type=number]{
+  border:1px solid #354864;border-radius:9px;
+  padding:10px;background:#1a2a43;color:white;
+  font-size:13px;min-width:0;
+}
+button:active{transform:scale(.97)}
+button.primary{background:#087f9c;border-color:#21d4f4}
+button.danger{background:#512535}
+button:disabled{opacity:.4}
+label{font-size:12px;color:var(--muted)}
+.control{display:flex;flex-direction:column;gap:7px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+.row>*{flex:1}
+input[type=color]{width:100%;height:39px;border:0;background:transparent}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=number]{width:100%}
+#stage{
+  position:relative;background:white;border-radius:12px;
+  overflow:hidden;width:100%;touch-action:none;
+  min-height:200px;
+}
+canvas{display:block;width:100%;height:auto;touch-action:none}
+#status{font-size:12px;color:#9ddff2;min-height:18px;margin-top:8px}
+.small{font-size:12px;color:var(--muted);line-height:1.6}
+.colors{display:flex;flex-wrap:wrap;gap:9px;margin-top:8px}
+.swatch{
+  width:29px;height:29px;border-radius:50%;padding:0;
+  border:2px solid #ffffff66;
+}
+@media(min-width:760px){
+ .workspace{display:grid;grid-template-columns:300px 1fr;gap:12px;align-items:start}
+ .tools{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>✨ Dot Art Studio</h1>
+  <p>Draw with dots · Photo to Dot Art · Create & Share</p>
+</header>
+
+<main>
+  <div class="panel">
+    <div class="row">
+      <button class="primary" id="newBtn">＋ New Drawing</button>
+      <button id="photoBtn">🖼️ Gallery Photo</button>
+      <button id="downloadBtn">⬇ Download PNG</button>
+      <button id="shareBtn">📤 Share</button>
+    </div>
+    <input id="photoInput" type="file" accept="image/*" hidden>
+    <p class="small">Gallery से फोटो चुनें और उसे dots में बदलें। अपनी drawing को PNG में सेव या शेयर करें।</p>
+  </div>
+
+  <div class="workspace">
+    <div>
+      <div class="panel">
+        <h3>🎨 Drawing Tools</h3>
+        <div class="tools">
+          <button class="primary" data-tool="draw">• Dot Brush</button>
+          <button data-tool="line">╱ Dot Line</button>
+          <button data-tool="erase">⌫ Eraser</button>
+          <button data-tool="spray">✺ Dot Spray</button>
+        </div>
+        <div class="row" style="margin-top:9px">
+          <button id="undoBtn">↶ Undo</button>
+          <button id="clearBtn" class="danger">Clear All</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>⚙️ Dot Settings</h3>
+        <div class="control">
+          <label>Dot Size: <span id="sizeVal">5</span> px</label>
+          <input id="dotSize" type="range" min="1" max="24" value="5">
+        </div>
+        <div class="control" style="margin-top:14px">
+          <label>Dot Spacing: <span id="spaceVal">9</span> px</label>
+          <input id="spacing" type="range" min="3" max="35" value="9">
+        </div>
+        <div class="row" style="margin-top:12px">
+          <div class="control">
+            <label>Dot Color</label>
+            <input id="dotColor" type="color" value="#101820">
+          </div>
+          <div class="control">
+            <label>Background</label>
+            <input id="bgColor" type="color" value="#ffffff">
+          </div>
+        </div>
+        <div class="colors" id="palette"></div>
+      </div>
+
+      <div class="panel">
+        <h3>🌈 Photo to Dot Art</h3>
+        <div class="control">
+          <label>Dot Density (छोटे dots = ज्यादा detail)</label>
+          <input id="density" type="range" min="3" max="20" value="7">
+        </div>
+        <div class="control" style="margin-top:12px">
+          <label>Photo Colors</label>
+          <select id="photoMode">
+            <option value="color">Original Color Dots</option>
+            <option value="mono">Black & White Dots</option>
+            <option value="neon">Neon Dots</option>
+            <option value="warm">Warm / Golden Dots</option>
+          </select>
+        </div>
+        <button class="primary" id="convertBtn" style="width:100%;margin-top:12px">
+          ✨ Convert Photo to Dots
+        </button>
+        <p class="small">Photo चुनने के बाद Convert दबाएँ। Image आपके browser में ही process होती है।</p>
+      </div>
+
+      <div class="panel">
+        <h3>🎁 Design Ideas</h3>
+        <div class="tools">
+          <button data-template="heart">❤️ Heart</button>
+          <button data-template="star">⭐ Star</button>
+          <button data-template="flower">🌸 Flower</button>
+          <button data-template="gift">🎁 Gift</button>
+          <button data-template="birthday">🎂 Birthday</button>
+          <button data-template="friend">🤝 Best Friend</button>
+          <button data-template="anime">⚡ Anime Eyes</button>
+          <button data-template="smile">😊 Smile</button>
+        </div>
+        <div class="control" style="margin-top:12px">
+          <label>Text / Name</label>
+          <input id="artText" type="text" maxlength="35"
+            placeholder="जैसे: Happy Birthday, Best Friend">
+        </div>
+        <button id="textBtn" class="primary" style="width:100%;margin-top:8px">
+          Add Dot Text
+        </button>
+        <p class="small">Templates starting designs हैं। आप ऊपर से और dots draw करके इन्हें customize कर सकते हैं।</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>🖌️ Your Canvas</h3>
+      <div id="stage">
+        <canvas id="canvas" width="900" height="700"></canvas>
+      </div>
+      <div id="status">Ready! Dots बनाना शुरू करें।</div>
+      <p class="small">
+        Mobile: उंगली से draw करें। PC: mouse से draw करें।
+        Dot Line के लिए canvas पर drag करें।
+      </p>
+    </div>
+  </div>
+</main>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d", {willReadFrequently:true});
+const $ = id => document.getElementById(id);
+
+let tool = "draw";
+let drawing = false;
+let last = null;
+let photo = null;
+let history = [];
+let dots = [];
+let activeAction = [];
+let actionStart = null;
+let photoGenerated = false;
+
+function setStatus(message){
+  $("status").textContent = message;
+}
+
+function background(){
+  ctx.fillStyle = $("bgColor").value;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+function saveHistory(){
+  history.push(canvas.toDataURL("image/png"));
+  if(history.length > 25) history.shift();
+  $("undoBtn").disabled = history.length === 0;
+}
+
+function restoreHistory(){
+  if(!history.length) return;
+  const src = history.pop();
+  const img = new Image();
+  img.onload = () => {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    setStatus("Undo complete");
+  };
+  img.src = src;
+}
+
+function getPos(e){
+  const r = canvas.getBoundingClientRect();
+  return {
+    x:(e.clientX-r.left)*canvas.width/r.width,
+    y:(e.clientY-r.top)*canvas.height/r.height
+  };
+}
+
+function dot(x,y,color,size){
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  ctx.arc(x,y,size/2,0,Math.PI*2);
+  ctx.fill();
+}
+
+function paintSegment(a,b,record=true){
+  if(!a || !b) return;
+  const spacing = Math.max(2,Number($("spacing").value));
+  const size = Number($("dotSize").value);
+  const dist = Math.hypot(b.x-a.x,b.y-a.y);
+  const steps = Math.max(1,Math.ceil(dist/spacing));
+
+  for(let i=0;i<=steps;i++){
+    const t=i/steps;
+    const x=a.x+(b.x-a.x)*t;
+    const y=a.y+(b.y-a.y)*t;
+
+    if(tool==="erase"){
+      ctx.save();
+      ctx.fillStyle=$("bgColor").value;
+      ctx.beginPath();
+      ctx.arc(x,y,size*1.5,0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    } else if(tool==="spray"){
+      for(let j=0;j<5;j++){
+        const angle=Math.random()*Math.PI*2;
+        const radius=Math.random()*size*3;
+        dot(x+Math.cos(angle)*radius,y+Math.sin(angle)*radius,
+          $("dotColor").value,Math.max(1,size*Math.random()));
+      }
+    } else {
+      dot(x,y,$("dotColor").value,size);
+    }
+  }
+}
+
+canvas.addEventListener("pointerdown",e=>{
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+  saveHistory();
+  drawing=true;
+  last=getPos(e);
+  actionStart=last;
+  activeAction=[last];
+  if(tool!=="line") paintSegment(last,last);
+});
+
+canvas.addEventListener("pointermove",e=>{
+  if(!drawing) return;
+  e.preventDefault();
+  const p=getPos(e);
+  if(tool==="line"){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    background();
+    redrawHistoryBase();
+    paintSegment(actionStart,p);
+  } else {
+    paintSegment(last,p);
+  }
+  last=p;
+});
+
+canvas.addEventListener("pointerup",e=>{
+  if(!drawing) return;
+  drawing=false;
+  if(tool==="line"){
+    const p=getPos(e);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    background();
+    redrawHistoryBase();
+    paintSegment(actionStart,p);
+  }
+  last=null;
+  setStatus("Drawing updated");
+});
+
+canvas.addEventListener("pointercancel",()=>{drawing=false;last=null});
+
+let lineBase = null;
+function redrawHistoryBase(){
+  if(lineBase){
+    const img=new Image();
+    img.src=lineBase;
+    if(img.complete) ctx.drawImage(img,0,0);
+  }
+}
+
+canvas.addEventListener("pointerdown",()=>{
+  if(tool==="line") lineBase=canvas.toDataURL("image/png");
+},{capture:true});
+
+$("dotSize").oninput=()=>{$("sizeVal").textContent=$("dotSize").value};
+$("spacing").oninput=()=>{$("spaceVal").textContent=$("spacing").value};
+
+document.querySelectorAll("[data-tool]").forEach(btn=>{
+  btn.onclick=()=>{
+    tool=btn.dataset.tool;
+    document.querySelectorAll("[data-tool]").forEach(b=>b.classList.remove("primary"));
+    btn.classList.add("primary");
+    setStatus("Selected: "+btn.textContent);
+  };
+});
+
+$("undoBtn").onclick=restoreHistory;
+
+$("clearBtn").onclick=()=>{
+  saveHistory();
+  background();
+  photoGenerated=false;
+  setStatus("Canvas cleared");
+};
+
+$("newBtn").onclick=()=>{
+  saveHistory();
+  background();
+  photo=null;
+  photoGenerated=false;
+  setStatus("New blank canvas ready");
+};
+
+$("bgColor").oninput=()=>{
+  if(!photoGenerated) background();
+};
+
+const palette=[
+ "#111827","#ffffff","#ff3355","#ff8a00",
+ "#ffd600","#39e75f","#00cfff","#4263ff",
+ "#a855f7","#ff55cc","#ffb6c1","#8b4513"
+];
+
+palette.forEach(color=>{
+  const b=document.createElement("button");
+  b.className="swatch";
+  b.style.background=color;
+  b.title=color;
+  b.onclick=()=>{
+    $("dotColor").value=color;
+    setStatus("Color selected: "+color);
+  };
+  $("palette").appendChild(b);
+});
+
+$("photoBtn").onclick=()=>$("photoInput").click();
+
+$("photoInput").onchange=e=>{
+  const file=e.target.files[0];
+  if(!file)return;
+  if(!file.type.startsWith("image/")){
+    setStatus("Please select an image file.");
+    return;
+  }
+  const url=URL.createObjectURL(file);
+  const img=new Image();
+  img.onload=()=>{
+    photo=img;
+    URL.revokeObjectURL(url);
+    setStatus("Photo loaded! अब Convert Photo to Dots दबाएँ।");
+  };
+  img.onerror=()=>{
+    URL.revokeObjectURL(url);
+    setStatus("Photo could not be opened.");
+  };
+  img.src=url;
+};
+
+function convertPhoto(){
+  if(!photo){
+    setStatus("पहले Gallery से photo चुनें।");
+    $("photoInput").click();
+    return;
+  }
+  saveHistory();
+  const step=Number($("density").value);
+  const mode=$("photoMode").value;
+  background();
+
+  const scale=Math.min(
+    (canvas.width-50)/photo.width,
+    (canvas.height-50)/photo.height
+  );
+  const w=photo.width*scale,h=photo.height*scale;
+  const ox=(canvas.width-w)/2,oy=(canvas.height-h)/2;
+
+  const temp=document.createElement("canvas");
+  temp.width=Math.max(1,Math.round(w));
+  temp.height=Math.max(1,Math.round(h));
+  const tctx=temp.getContext("2d",{willReadFrequently:true});
+  tctx.drawImage(photo,0,0,temp.width,temp.height);
+  const imageData=tctx.getImageData(0,0,temp.width,temp.height);
+  const data=imageData.data;
+
+  const radius=Math.max(1.3,step*0.48);
+  for(let y=step/2;y<temp.height;y+=step){
+    for(let x=step/2;x<temp.width;x+=step){
+      const i=(Math.floor(y)*temp.width+Math.floor(x))*4;
+      let r=data[i],g=data[i+1],b=data[i+2];
+      const alpha=data[i+3]/255;
+      if(alpha<0.15) continue;
+
+      if(mode==="mono"){
+        const gray=0.299*r+0.587*g+0.114*b;
+        r=g=b=gray<125?15:245;
+      } else if(mode==="neon"){
+        r=Math.min(255,r*1.4+25);
+        g=Math.min(255,g*1.3+20);
+        b=Math.min(255,b*1.5+30);
+      } else if(mode==="warm"){
+        r=Math.min(255,r*1.12+25);
+        g=Math.min(255,g*0.92+8);
+        b=b*0.68;
+      }
+
+      dot(ox+x,oy+y,`rgba(${r|0},${g|0},${b|0},${alpha})`,radius);
+    }
+  }
+  photoGenerated=true;
+  setStatus("Photo converted to Dot Art! Download या Share करें।");
+}
+$("convertBtn").onclick=convertPhoto;
+
+function drawTemplate(type){
+  saveHistory();
+  background();
+  photoGenerated=false;
+  const cx=canvas.width/2,cy=canvas.height/2;
+  const s=1.0;
+  const step=Number($("spacing").value);
+  const oldTool=tool;
+  tool="draw";
+
+  function coloredDot(x,y,c,size=7){
+    dot(x,y,c,size);
+  }
+
+  function lineDots(x1,y1,x2,y2,c,size=7,gap=step*1.5){
+    const n=Math.ceil(Math.hypot(x2-x1,y2-y1)/gap);
+    for(let i=0;i<=n;i++){
+      const t=n?i/n:0;
+      coloredDot(x1+(x2-x1)*t,y1+(y2-y1)*t,c,size);
+    }
+  }
+
+  if(type==="heart"){
+    for(let y=-155;y<155;y+=step*1.2){
+      for(let x=-165;x<165;x+=step*1.2){
+        const X=x/100,Y=-y/100;
+        const f=Math.pow(X*X+Y*Y-1,3)-X*X*Y*Y*Y;
+        if(f<=0)coloredDot(cx+x,cy+y,"#ff335f",7);
+      }
+    }
+  } else if(type==="star"){
+    const pts=[];
+    for(let i=0;i<10;i++){
+      const a=-Math.PI/2+i*Math.PI/5;
+      const r=i%2===0?155:68;
+      pts.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]);
+    }
+    for(let i=0;i<10;i++){
+      lineDots(...pts[i],...pts[(i+1)%10],"#ffc928",7);
+    }
+  } else if(type==="flower"){
+    for(let i=0;i<8;i++){
+      const a=i*Math.PI/4;
+      const px=cx+Math.cos(a)*75,py=cy+Math.sin(a)*75;
+      for(let r=7;r<=42;r+=step*1.2){
+        for(let j=0;j<Math.max(12,r*2);j++){
+          const t=j/Math.max(12,r*2)*Math.PI*2;
+          coloredDot(px+Math.cos(t)*r,py+Math.sin(t)*r,"#ff69b4",6);
+        }
+      }
+    }
+    for(let r=8;r<40;r+=step){
+      for(let a=0;a<Math.PI*2;a+=0.16){
+        coloredDot(cx+Math.cos(a)*r,cy+Math.sin(a)*r,"#ffd700",7);
+      }
+    }
+  } else if(type==="gift"){
+    for(let y=-90;y<=90;y+=step*1.2){
+      for(let x=-105;x<=105;x+=step*1.2){
+        if(Math.abs(x)<70 || Math.abs(y)<65)
+          coloredDot(cx+x,cy+y,"#ff386b",7);
+      }
+    }
+    lineDots(cx,cy-90,cx,cy+90,"#ffd34e",9);
+    lineDots(cx-105,cy,cx+105,cy,"#ffd34e",9);
+    for(let i=0;i<30;i++){
+      const a=i*Math.PI/15;
+      coloredDot(cx-22+Math.cos(a)*22,cy-110+Math.sin(a)*16,"#ffd34e",7);
+      coloredDot(cx+22+Math.cos(a)*22,cy-110+Math.sin(a)*16,"#ffd34e",7);
+    }
+  } else if(type==="birthday"){
+    for(let x=-130;x<=130;x+=step*1.4){
+      lineDots(cx+x,cy+80,cx+x,cy+135,"#ff779f",6);
+      coloredDot(cx+x,cy+70,["#ffdf4d","#51ddff","#a87bff"][Math.abs(Math.round(x))%3],7);
+    }
+    for(let y=-45;y<=45;y+=step*1.3){
+      for(let x=-135;x<=135;x+=step*1.3){
+        coloredDot(cx+x,cy+y,(x*x+y*y)%3<1?"#ff6699":"#ffc857",6);
+      }
+    }
+    lineDots(cx-135,cy+0,cx+135,cy+0,"#ffffff",7);
+  } else if(type==="friend"){
+    for(let y=-90;y<=90;y+=step*1.3){
+      for(let x=-145;x<=145;x+=step*1.3){
+        if(x*x/20000+y*y/10000<1){
+          coloredDot(cx+x,cy+y,x<0?"#ff71a8":"#62cfff",7);
+        }
+      }
+    }
+    for(let x=-60;x<=60;x+=step){
+      coloredDot(cx+x,cy,"#ffffff",8);
+    }
+  } else if(type==="anime"){
+    for(let side of [-1,1]){
+      const ex=cx+side*90,ey=cy;
+      for(let y=-32;y<=32;y+=step){
+        for(let x=-50;x<=50;x+=step){
+          const nx=x/50,ny=y/32;
+          if(nx*nx+ny*ny<1){
+            coloredDot(ex+x,ey+y,"#f4f7ff",6);
+          }
+        }
+      }
+      for(let a=0;a<Math.PI*2;a+=0.15){
+        coloredDot(ex+Math.cos(a)*23,ey+Math.sin(a)*27,"#00cfff",6);
+      }
+      for(let a=0;a<Math.PI*2;a+=0.2){
+        coloredDot(ex+Math.cos(a)*9,ey+Math.sin(a)*12,"#111827",6);
+      }
+      lineDots(ex-48,ey-35,ex+45,ey-25,"#101827",8);
+    }
+  } else if(type==="smile"){
+    for(let a=0;a<Math.PI*2;a+=0.12){
+      coloredDot(cx+Math.cos(a)*130,cy+Math.sin(a)*130,"#ffbd2e",7);
+    }
+    for(let side of [-1,1]){
+      for(let a=0;a<Math.PI*2;a+=0.3){
+        coloredDot(cx+side*48+Math.cos(a)*8,cy-30+Math.sin(a)*12,"#14233a",7);
+      }
+    }
+    for(let a=0;a<=Math.PI;a+=0.1){
+      coloredDot(cx+Math.cos(a)*67,cy+Math.sin(a)*52,"#e34b58",7);
+    }
+  }
+
+  tool=oldTool;
+  setStatus(type+" design created. Add more dots to customize!");
+}
+
+document.querySelectorAll("[data-template]").forEach(btn=>{
+  btn.onclick=()=>drawTemplate(btn.dataset.template);
+});
+
+$("textBtn").onclick=()=>{
+  const text=$("artText").value.trim();
+  if(!text){setStatus("पहले text या name लिखें।");return;}
+  saveHistory();
+  const oldTool=tool;
+  tool="draw";
+  ctx.save();
+  ctx.font="bold 54px Arial";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  const maxWidth=canvas.width-60;
+  let size=54;
+  while(ctx.measureText(text).width>maxWidth && size>12){
+    size-=2;ctx.font=`bold ${size}px Arial`;
+  }
+  const off=document.createElement("canvas");
+  off.width=canvas.width;off.height=canvas.height;
+  const o=off.getContext("2d");
+  o.font=`bold ${size}px Arial`;
+  o.textAlign="center";o.textBaseline="middle";
+  o.fillStyle="#000";o.fillText(text,canvas.width/2,canvas.height/2, maxWidth);
+  const pixels=o.getImageData(0,0,off.width,off.height).data;
+  const gap=Number($("spacing").value);
+  for(let y=0;y<off.height;y+=gap){
+    for(let x=0;x<off.width;x+=gap){
+      if(pixels[(y*off.width+x)*4+3]>100){
+        dot(x,y,$("dotColor").value,Number($("dotSize").value));
+      }
+    }
+  }
+  ctx.restore();
+  tool=oldTool;
+  setStatus("Dot text added!");
+};
+
+function canvasBlob(){
+  return new Promise(resolve=>canvas.toBlob(resolve,"image/png"));
+}
+
+$("downloadBtn").onclick=async()=>{
+  const blob=await canvasBlob();
+  if(!blob){setStatus("Image export failed.");return;}
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="dot-art-"+Date.now()+".png";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  setStatus("PNG download started.");
+};
+
+$("shareBtn").onclick=async()=>{
+  const blob=await canvasBlob();
+  if(!blob){setStatus("Image export failed.");return;}
+  const file=new File([blob],"dot-art.png",{type:"image/png"});
+  try{
+    if(navigator.share && navigator.canShare &&
+       navigator.canShare({files:[file]})){
+      await navigator.share({title:"My Dot Art",text:"Made with Dot Art Studio",files:[file]});
+    } else {
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;a.download="dot-art.png";a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),1500);
+      setStatus("Direct sharing unavailable. PNG downloaded; send it from Gallery.");
+    }
+  }catch(e){
+    if(e.name!=="AbortError")setStatus("Share unavailable. Please download the PNG.");
+  }
+};
+
+$("undoBtn").disabled=true;
+background();
+</script>
+</body>
+</html>
+        
